@@ -42,7 +42,7 @@ impl Lexer {
         Some(ch)
     }
 
-    pub fn lexar_allocation(&mut self, cmd: &str) -> Result<(), String> {
+    pub fn lexar_allocation(&mut self, cmd: &str) -> Result<Vec<Token>, String> {
         //lldbにて確認
         while self.position < cmd.len() {
             let ch = self.new_state(&cmd).unwrap();
@@ -59,7 +59,7 @@ impl Lexer {
             let word = &cmd[start..self.position];
             self.parts.push(Token::Word(word.to_string()));
         }
-        Ok(())
+        Ok(self.parts.clone())
     }
 
     fn lexar_nomal(&mut self, cmd: &str, ch: char) -> Result<(), String> {

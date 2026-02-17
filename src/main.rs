@@ -1,5 +1,7 @@
 use std::io;
 
+use crate::{lexer::Token, parser::Parser};
+
 //ファイルをインポート
 mod lexer;
 mod parser;
@@ -15,8 +17,18 @@ fn shell_loop() {
         match standard_input() {
             Ok(cmd) if !cmd.is_empty() => {
                 let mut lex = lexer::Lexer::new();
-                lex.lexar_allocation(&cmd).unwrap();
+                let tokens = match lex.lexar_allocation(&cmd) {
+                    Ok(t) => t,
+                    Err(e) => {
+                        eprintln!("Lexer error {}", e);
+                        continue;
+                    }
+                };
 
+                //parser
+                let mut parser = Parser::new(tokens);
+                let ast = parser.parser();
+                println!("{:#?}", ast);
             }
             Err(e) => println!("{}", e),
             _ => return,
