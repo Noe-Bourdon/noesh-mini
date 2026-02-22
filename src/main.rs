@@ -28,7 +28,7 @@ fn shell_loop() {
                 //parser
                 let mut parser = Parser::new(tokens);
                 let ast = parser.parser();
-                println!("{:#?}", ast);
+                println!("{:?}", ast);
             }
             Err(e) => println!("{}", e),
             _ => return,
