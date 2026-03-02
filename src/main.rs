@@ -5,6 +5,7 @@ use crate::{lexer::Token, parser::Parser};
 //ファイルをインポート
 mod lexer;
 mod parser;
+mod executor;
 
 //
 
@@ -29,6 +30,9 @@ fn shell_loop() {
                 let mut parser = Parser::new(tokens);
                 let ast = parser.parser();
                 println!("{:?}", ast);
+
+                // execute
+ 
             }
             Err(e) => println!("{}", e),
             _ => return,
