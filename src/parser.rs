@@ -7,7 +7,7 @@ use crate::lexer::Token;
 /// 
 
 /// コマンド Command {name: echo, args: ["hello"] }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Command {
     name: String,
     args: Vec<String>,
@@ -17,13 +17,13 @@ pub struct Command {
 ///     Box::new(AST::Command
 ///     Box::new(AST::Command
 ///  )
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum AST {
     Command(Command),
     Pipe(Box<AST>, Box<AST>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Parser {
     pub tokens: Vec<Token>,
     position: usize,
