@@ -41,6 +41,7 @@ impl Execute {
             }
         }
     }
+    
 
     ///ASTを取得し振る舞い関数
     pub fn execute(&mut self, ast: AST,) {
@@ -59,13 +60,13 @@ impl Execute {
 
     fn execute_pipeline(&mut self, ) {
         
-        //プロセスの生成
-        match unsafe { fork() } {
-            //親プロセス
-            Ok(ForkResult::Parent { child }) => {
+        // //プロセスの生成
+        // match unsafe { fork() } {
+        //     //親プロセス
+        //     Ok(ForkResult::Parent { child }) => {
                 
-            }            
-        }
+        //     }            
+        // }
 
     }
 }
