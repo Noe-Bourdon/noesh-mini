@@ -1,5 +1,5 @@
 
-use nix::{libc::{STDIN_FILENO, STDOUT_FILENO, dup2, fork}, sys::wait::waitpid, unistd::{ForkResult, fork, getpid, getppid, read}}
+use nix::{libc::{FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, fork}, sys::wait::{WaitStatus, waitpid}, unistd::{ForkResult, fork, getpid, getppid, read}}
 
 use crate::parser::{AST, Command};
 
@@ -17,7 +17,7 @@ impl Execute {
     ///      ├─ Command("grep", ["h"])
     ///      └─ Command("wc", ["-l"])
     /// ```
-    /// 真っ直ぐなリストに変換する
+    /// ASTを真っ直ぐなリストに変換する
     /// ```rust
     /// [
     ///     Command(echo),
@@ -25,13 +25,14 @@ impl Execute {
     ///     Command(wc)
     /// ]
     /// ```
-    fn flatten(&self) -> Vec<Command>{
+    fn flatten(&self) -> Vec<Command> {
         let mut cmds = Vec::new();
-        self.flatten_into(ast, &mut cmds);
+        self.flatten_into(s, &mut cmds);
         cmds
         
     }
-
+    
+    ///ASTから木構造を左から右に順番通りのVec(command)に変換する関数
     fn flatten_into(&mut self, ast: &AST, out: &mut Vec<Command>) {
         match ast {
             AST::Command(cmd) => out.push(cmd.clone()),
@@ -41,33 +42,34 @@ impl Execute {
             }
         }
     }
-    
 
-    ///ASTを取得し振る舞い関数
-    pub fn execute(&mut self, ast: AST,) {
-        match ast {
-            AST::Command(cmd) => self.run_command(cmd)
+    pub fn execute(&mut self, dnf: &mut Vec<Command>) {
+        
+        for cmd in dnf {
+            println!("{:?}", cmd);
+
+            match unsafe {fork() } {
+                Ok(ForkResult::Parent { child }) => {
+                   println!("Main")
+                }
+
+                Ok(ForkResult::Child) => unsafe {
+                    
+                }
+                Err(_) => {
+                    panic!("Fork failed.");
+                }
+            };
+            
+            match waitpid(h, None) {
+                Ok(waitstatus) => {
+                    println!("Child exied {:?}", waitstatus)
+                }
+                Err(_) => {
+                    panic!("wait error");
+                }
+            }
         }
-    }
-
-    fn run_command(&mut self, cmd: ) {
-        
-    }
-
-    fn run_pipe(&mut self, left: AST, right: AST) {
-        
-    }
-
-    fn execute_pipeline(&mut self, ) {
-        
-        // //プロセスの生成
-        // match unsafe { fork() } {
-        //     //親プロセス
-        //     Ok(ForkResult::Parent { child }) => {
-                
-        //     }            
-        // }
-
     }
 }
 
