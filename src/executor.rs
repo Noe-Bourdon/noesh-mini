@@ -1,5 +1,25 @@
 
-use nix::{libc::{FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, fork}, sys::wait::{WaitStatus, waitpid}, unistd::{ForkResult, fork, getpid, getppid, read}}
+use std::env::args;
+
+use nix::libc::{
+    FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, exit, 
+};
+
+use nix::sys::wait::{
+    waitpid,
+    WaitStatus,
+};
+
+use nix::unistd::{
+    ForkResult,
+    fork,
+    getpid,
+    getppid,
+    read,
+    execvp,
+};
+
+use std::ffi::CString;
 
 use crate::parser::{AST, Command};
 
@@ -25,15 +45,15 @@ impl Execute {
     ///     Command(wc)
     /// ]
     /// ```
-    fn flatten(&self) -> Vec<Command> {
+    fn flatten(&self, ast: &AST) -> Vec<Command> {
         let mut cmds = Vec::new();
-        self.flatten_into(s, &mut cmds);
+        self.flatten_into(ast, &mut cmds);
         cmds
         
     }
     
     ///ASTから木構造を左から右に順番通りのVec(command)に変換する関数
-    fn flatten_into(&mut self, ast: &AST, out: &mut Vec<Command>) {
+    fn flatten_into(&self, ast: &AST, out: &mut Vec<Command>) {
         match ast {
             AST::Command(cmd) => out.push(cmd.clone()),
             AST::Pipe(left, right) => {
@@ -50,26 +70,25 @@ impl Execute {
 
             match unsafe {fork() } {
                 Ok(ForkResult::Parent { child }) => {
-                   println!("Main")
+                   match waitpid(child, None) {
+                       Ok(waitstatus) => {
+                            println!("Child exited {:?}", waitstatus);
+                       }
+                       Err(e) => {
+                            eprintln!("waitpid error {:?}", e);
+                       }
+                   }
                 }
-
+                //CStringの使用
                 Ok(ForkResult::Child) => unsafe {
-                    
+                    execvp(&bin, &[&bin, &args]).expect("coconush error: failed exec.");
+                    exit(0);
                 }
                 Err(_) => {
                     panic!("Fork failed.");
                 }
             };
-            
-            match waitpid(h, None) {
-                Ok(waitstatus) => {
-                    println!("Child exied {:?}", waitstatus)
-                }
-                Err(_) => {
-                    panic!("wait error");
-                }
             }
         }
-    }
 }
 
