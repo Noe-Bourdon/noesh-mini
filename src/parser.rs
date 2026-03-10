@@ -9,8 +9,8 @@ use crate::lexer::Token;
 /// コマンド Command {name: echo, args: ["hello"] }
 #[derive(Debug, Clone)]
 pub struct Command {
-    name: String,
-    args: Vec<String>,
+    pub name: String,
+    pub args: Vec<String>,
 }
 
 /// AST::Pipe (

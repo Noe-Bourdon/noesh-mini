@@ -1,5 +1,25 @@
 
-use nix::{libc::{STDIN_FILENO, STDOUT_FILENO, dup2, fork}, sys::wait::waitpid, unistd::{ForkResult, fork, getpid, getppid, read}}
+use std::env::args;
+
+use nix::libc::{
+    self, FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, exit 
+};
+
+use nix::sys::wait::{
+    waitpid,
+    WaitStatus,
+};
+
+use nix::unistd::{
+    ForkResult,
+    fork,
+    getpid,
+    getppid,
+    read,
+    execvp,
+};
+
+use std::ffi::CString;
 
 use crate::parser::{AST, Command};
 
@@ -17,22 +37,23 @@ impl Execute {
     ///      ├─ Command("grep", ["h"])
     ///      └─ Command("wc", ["-l"])
     /// ```
-    /// 真っ直ぐなリストに変換する
+    /// ASTを真っ直ぐなリストに変換する
     /// ```rust
     /// [
-    ///     Command(echo),
-    ///     Command(grep),
-    ///     Command(wc)
+    ///     Command(echo ["hello"]),
+    ///     Command(grep ["h"]),
+    ///     Command(wc ["-l"]),
     /// ]
     /// ```
-    fn flatten(&self) -> Vec<Command>{
+    fn flatten(&self, ast: &AST) -> Vec<Command> {
         let mut cmds = Vec::new();
         self.flatten_into(ast, &mut cmds);
         cmds
         
     }
-
-    fn flatten_into(&mut self, ast: &AST, out: &mut Vec<Command>) {
+    
+    ///ASTから木構造を左から右に順番通りのVec(command)に変換する関数
+    fn flatten_into(&self, ast: &AST, out: &mut Vec<Command>) {
         match ast {
             AST::Command(cmd) => out.push(cmd.clone()),
             AST::Pipe(left, right) => {
@@ -41,33 +62,51 @@ impl Execute {
             }
         }
     }
-    
 
-    ///ASTを取得し振る舞い関数
-    pub fn execute(&mut self, ast: AST,) {
-        match ast {
-            AST::Command(cmd) => self.run_command(cmd)
+    ///マンド実行機（Executor）が、コマンドの一覧を1つずつ実行する部分
+    pub fn execute(&mut self, dnf: &mut Vec<Command>) {
+        for cmd in dnf {
+            println!("{:?}", cmd);
+
+            //execvはC言語の関数なので変換しなければならない
+            // name = "echo"
+            // args = ["hello", "world"]
+            let bin = CString::new(cmd.name.clone()).unwrap();
+
+            let mut args = Vec::new();
+
+            args.push(bin.clone()); //argv[0]
+
+            for args_push in &cmd.args {
+                args.push(CString::new(args_push.as_str()).unwrap());
+            }
+
+            //forkで子プロセスを作る
+            match fork() {
+                //親 -> waitpidで子が終わるのを待つ
+                Ok(ForkResult::Parent { child }) => {
+                   match waitpid(child, None) {
+                       Ok(waitstatus) => {
+                            println!("Child exited {:?}", waitstatus);
+                       }
+                       Err(e) => {
+                            eprintln!("waitpid error {:?}", e);
+                       }
+                   }
+                }
+                //CStringの使用
+                //子 -> execvpでコマンドに変更
+                Ok(ForkResult::Child) => {
+                    execvp(&bin, &args).expect("coconush error: failed exec.");
+                    unsafe {libc::exit(1)};
+                }
+                Err(_) => {
+                    panic!("Fork failed.");  
+                }
+            };
         }
     }
 
-    fn run_command(&mut self, cmd: ) {
-        
-    }
-
-    fn run_pipe(&mut self, left: AST, right: AST) {
-        
-    }
-
-    fn execute_pipeline(&mut self, ) {
-        
-        // //プロセスの生成
-        // match unsafe { fork() } {
-        //     //親プロセス
-        //     Ok(ForkResult::Parent { child }) => {
-                
-        //     }            
-        // }
-
-    }
+    
 }
 
