@@ -2,7 +2,7 @@
 use std::env::args;
 
 use nix::libc::{
-    FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, exit, 
+    self, FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, exit 
 };
 
 use nix::sys::wait::{
@@ -40,9 +40,9 @@ impl Execute {
     /// ASTを真っ直ぐなリストに変換する
     /// ```rust
     /// [
-    ///     Command(echo),
-    ///     Command(grep),
-    ///     Command(wc)
+    ///     Command(echo ["hello"]),
+    ///     Command(grep ["h"]),
+    ///     Command(wc ["-l"]),
     /// ]
     /// ```
     fn flatten(&self, ast: &AST) -> Vec<Command> {
@@ -63,12 +63,27 @@ impl Execute {
         }
     }
 
+    ///マンド実行機（Executor）が、コマンドの一覧を1つずつ実行する部分
     pub fn execute(&mut self, dnf: &mut Vec<Command>) {
-        
         for cmd in dnf {
             println!("{:?}", cmd);
 
-            match unsafe {fork() } {
+            //execvはC言語の関数なので変換しなければならない
+            // name = "echo"
+            // args = ["hello", "world"]
+            let bin = CString::new(cmd.name.clone()).unwrap();
+
+            let mut args = Vec::new();
+
+            args.push(bin.clone()); //argv[0]
+
+            for args_push in &cmd.args {
+                args.push(CString::new(args_push.as_str()).unwrap());
+            }
+
+            //forkで子プロセスを作る
+            match fork() {
+                //親 -> waitpidで子が終わるのを待つ
                 Ok(ForkResult::Parent { child }) => {
                    match waitpid(child, None) {
                        Ok(waitstatus) => {
@@ -80,15 +95,18 @@ impl Execute {
                    }
                 }
                 //CStringの使用
-                Ok(ForkResult::Child) => unsafe {
-                    execvp(&bin, &[&bin, &args]).expect("coconush error: failed exec.");
-                    exit(0);
+                //子 -> execvpでコマンドに変更
+                Ok(ForkResult::Child) => {
+                    execvp(&bin, &args).expect("coconush error: failed exec.");
+                    unsafe {libc::exit(1)};
                 }
                 Err(_) => {
-                    panic!("Fork failed.");
+                    panic!("Fork failed.");  
                 }
             };
-            }
         }
+    }
+
+    
 }
 
