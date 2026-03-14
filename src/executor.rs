@@ -1,8 +1,9 @@
 
 use std::env::args;
+use std::time::Duration;
 
 use nix::libc::{
-    self, FS_IOC32_SETVERSION, STDIN_FILENO, STDOUT_FILENO, dup2, exit 
+    self, CS, FS_IOC32_SETVERSION, ICRNL, STDIN_FILENO, STDOUT_FILENO, close, dup2, exit 
 };
 
 use nix::sys::wait::{
@@ -11,12 +12,7 @@ use nix::sys::wait::{
 };
 
 use nix::unistd::{
-    ForkResult,
-    fork,
-    getpid,
-    getppid,
-    read,
-    execvp,
+    ForkResult, execvp, fork, getpid, getppid, pipe, read
 };
 
 use std::ffi::CString;
@@ -45,7 +41,7 @@ impl Execute {
     ///     Command(wc ["-l"]),
     /// ]
     /// ```
-    fn flatten(&self, ast: &AST) -> Vec<Command> {
+    pub fn flatten(&self, ast: &AST) -> Vec<Command> {
         let mut cmds = Vec::new();
         self.flatten_into(ast, &mut cmds);
         cmds
@@ -60,6 +56,15 @@ impl Execute {
                 self.flatten_into(left, out);
                 self.flatten_into(right, out);
             }
+        }
+    }
+
+    pub fn  run_commands(&mut self, cmds: &Vec<Command>) {
+        match cmds.len() {
+            0 => return,
+            1 => self.execute(cmds),
+            2 => Execute::execute(&mut self, dnf),
+            _ => panic!("no")
         }
     }
 
@@ -107,6 +112,53 @@ impl Execute {
         }
     }
 
-    
-}
+    fn pipe_execute(cmds: &Vec<Command>) {
+        let (read_fg, write_fg) = pipe().unwrap();
 
+        let cmd_one = &cmds[0];
+        let cmd_two = &cmds[1];
+
+        match  fork().unwrap() {
+            ForkResult::Child => {
+                unsafe {
+                    dup2(write_fg, nix::libc::STDOUT_FILENO);
+                    close(read_fg);
+
+                    let bin = CString::new(cmd_one.name.clone()).unwrap();
+                    let args: Vec<CString> = std::iter::once(bin.clone())
+                        .chain(cmd_one.args.iter().map(|a| CString::new(a.as_str()).unwrap()))
+                        .collect();
+
+                    execvp(&bin, &args).unwrap();
+                }
+            }
+
+            ForkResult::Parent { child: child_one } => {
+                match fork().unwrap() {
+                    ForkResult::Child => {
+                        unsafe {
+                            dup2(read_fg, STDIN_FILENO);
+                            close(write_fg);
+
+                            let bin = CString::new(cmd_two.name.clone()).unwrap();
+                            let args: Vec<CString> = std::iter::once(bin.clone())
+                                .chain(cmd_two.args.iter().map(|a| CString::new(a.as_str()).unwrap()))
+                                .collect();
+
+                            execvp(&bin, &args).unwrap(); 
+                        }
+                    }
+                    ForkResult::Parent { child: child_two } => {
+                        unsafe {
+                            close(read_fg);
+                            close(write_fg);
+
+                            waitpid(child_one, None);
+                            waitpid(child_two, None);
+                        }
+                    }
+                }
+            }
+        }
+    }
+} 

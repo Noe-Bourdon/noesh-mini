@@ -1,6 +1,6 @@
 use std::io;
 
-use crate::{lexer::Token, parser::Parser};
+use crate::{executor::Execute, lexer::Token, parser::Parser};
 
 //ファイルをインポート
 mod lexer;
@@ -32,6 +32,8 @@ fn shell_loop() {
                 println!("{:?}", ast);
 
                 // execute
+                let mut execute = executor::Execute{};
+                let cmds = execute.flatten(&ast);
  
             }
             Err(e) => println!("{}", e),
