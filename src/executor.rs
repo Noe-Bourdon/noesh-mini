@@ -1,18 +1,15 @@
 
-use std::env::args;
-use std::time::Duration;
 
 use nix::libc::{
-    self, CS, FS_IOC32_SETVERSION, ICRNL, STDIN_FILENO, STDOUT_FILENO, close, dup2, exit 
+    self, STDIN_FILENO,  close, dup2,
 };
 
 use nix::sys::wait::{
     waitpid,
-    WaitStatus,
 };
 
 use nix::unistd::{
-    ForkResult, execvp, fork, getpid, getppid, pipe, read
+    ForkResult, execvp, fork, pipe, 
 };
 
 use std::ffi::CString;
@@ -153,8 +150,8 @@ impl Execute {
                             close(read_fg);
                             close(write_fg);
 
-                            waitpid(child_one, None);
-                            waitpid(child_two, None);
+                            let _ = waitpid(child_one, None);
+                            let _ = waitpid(child_two, None);
                         }
                     }
                 }
