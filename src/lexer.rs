@@ -62,7 +62,7 @@ impl Lexer {
         Ok(self.parts.clone())
     }
 
-    fn lexar_nomal(&mut self, cmd: &str, ch: char) -> Result<(), String> {
+    fn lexar_nomal(&mut self, _cmd: &str, ch: char) -> Result<(), String> {
         match ch {
             //何もしてないのpushしてるから説
             ch if ch.is_alphanumeric() => {

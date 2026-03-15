@@ -59,12 +59,12 @@ impl Execute {
         }
     }
 
-    pub fn  run_commands(&mut self, cmds: &Vec<Command>) {
+    pub fn  run_commands(&mut self, cmds: &mut Vec<Command>) {
         match cmds.len() {
             0 => return,
             1 => self.execute(cmds),
-            2 => Execute::execute(&mut self, dnf),
-            _ => panic!("no")
+            2 => Execute::pipe_execute(cmds),
+            _ => panic!("not implemented")
         }
     }
 
