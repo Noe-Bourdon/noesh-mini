@@ -72,28 +72,23 @@ impl Lexer {
             //パイプが来た場合パイプ決定
             '|' => self.parts.push(Token::Pipe),
             '&' => self._state = LexerState::InNextAnd,
-            _ => eprintln!("すいません。対応していません"),
+            _ => panic!(""),
         }
 
         Ok(())
     }
 
-    fn is_invalid_char(&mut self, ch: char) -> bool {
-        const INVALID: &str = r#"!@#$%^*-_=+./"#;
-        INVALID.contains(ch)
-    }
-
     fn lexar_inword(&mut self, cmd: &str, ch: char) -> Result<(), String> {
-        if self.is_invalid_char(ch) {
-            return Err("無効な文字です".into());
-        } else if ch.is_alphabetic() {
-            self._state = LexerState::InWord;
-        } else {
+        //から文字で終了
+        if ch.is_whitespace() {
             if let Some(start) = self.store.pop() {
-                let word: &str = &cmd[start..self.position - ch.len_utf8()];
+                let word = &cmd[start..self.position - ch.len_utf8()];
                 self.parts.push(Token::Word(word.to_string()));
             }
             self._state = LexerState::Nomarl;
+        } else {
+            //文字列は継続
+            self._state = LexerState::InWord;
         }
         Ok(())
     }

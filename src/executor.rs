@@ -119,6 +119,7 @@ impl Execute {
             ForkResult::Child => {
                 unsafe {
                     dup2(write_fg, nix::libc::STDOUT_FILENO);
+                    close(write_fg);
                     close(read_fg);
 
                     let bin = CString::new(cmd_one.name.clone()).unwrap();
@@ -135,6 +136,8 @@ impl Execute {
                     ForkResult::Child => {
                         unsafe {
                             dup2(read_fg, STDIN_FILENO);
+
+                            close(read_fg);
                             close(write_fg);
 
                             let bin = CString::new(cmd_two.name.clone()).unwrap();
