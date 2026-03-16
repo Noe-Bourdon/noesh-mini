@@ -1,4 +1,4 @@
-use std::io::{self, Read};
+use std::io::{self, Read, Write};
 
 use crate:: parser::Parser;
 
@@ -28,7 +28,12 @@ fn main() {
 }
 
 fn shell_loop() {
+
     loop {
+        let prompt = "noesh-mini";
+        print!("\x1b[32m{prompt}\x1b[0m > ");
+        std::io::stdout().flush().unwrap();
+        
         match standard_input() {
             Ok(cmd) if !cmd.is_empty() => {
 

@@ -72,6 +72,11 @@ impl Lexer {
             //パイプが来た場合パイプ決定
             '|' => self.parts.push(Token::Pipe),
             '&' => self._state = LexerState::InNextAnd,
+            //空白の場合はなにもしない
+            
+            ch if ch.is_whitespace() => {
+                
+            }
             _ => panic!(""),
         }
 
