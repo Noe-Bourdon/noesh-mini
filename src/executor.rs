@@ -159,3 +159,19 @@ impl Execute {
         }
     }
 } 
+
+//テスト
+#[cfg(test)]
+    #[test]      
+    fn shell_test() {
+        let mut executor = Execute{};
+        let ast = AST::Command(Command {
+            name: "echo".into(),
+            args: vec!["name".into()],
+        });
+
+        let mut cmd = executor.flatten(&ast);
+        executor.run_commands(&mut cmd);
+    }
+
+
