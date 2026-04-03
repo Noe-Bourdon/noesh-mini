@@ -17,28 +17,49 @@ enum LexerState {
 
 #[derive(Debug)]
 ///管理状態
+/// `Lexer::new()` は以下の初期状態を用意する:
+/// ```rust
+/// Lexer {
+///     parts: [],      // トークンに変換された単語を格納するリスト
+///     state: Normal,  // 通常状態（クォート中などではない）
+///     position: 0,    // 現在処理中の文字位置
+///     store: [],      // 文字を一時的に貯めておくバッファ
+/// }
+/// ```
 pub struct Lexer {
     pub parts: Vec<Token>,  //完成した単語を入れる箱
     _state: LexerState, //今のレキサーの状態
-    position: usize,
+    position: usize, //　インデックス
     store: Vec<usize>, //単語の最初の位置を入れる箱
 }
 
 impl Lexer {
+    // 初期化関数　コンストラクタ的
     pub fn new() -> Self {
         Lexer {
+            //　字句解析中に分割された文字列パーツを入れる
             parts: Vec::new(),
+            //　レキサーの状態を表す　最初は通常モード
             _state: LexerState::Nomarl,
+            //　今のどの文字かを示すインデックス
             position: 0,
+            //　一時的にトークンを作成するためのバッファー
             store: Vec::new(),
         }
     }
 
-    ///positionを使って、cmdの文字をひとずつ進める関数
+    /// 入力文字列`cmd`をposition(現在位置)に従って
+    /// １文字ずつ読み取る関数
+    /// 
+    /// 
     fn new_state(&mut self, cmd: &str) -> Option<char> {
+        //　インデックスを見ながら１文字分けていく
         let mut iter = cmd[self.position..].chars();
+        //　next関数で次の文字に読み取る
         let ch = iter.next()?;
+        //　読み取った文字だけバイト数だけ進める
         self.position += ch.len_utf8();
+        //　読み取った１文字を結果で返す
         Some(ch)
     }
 

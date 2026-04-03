@@ -1,7 +1,7 @@
 
 
 use nix::libc::{
-    self, STDIN_FILENO,  close, dup2,
+    self, STDIN_FILENO, 
 };
 
 use nix::sys::wait::{
@@ -109,58 +109,54 @@ impl Execute {
         }
     }
 
-    fn pipe_execute(cmds: &Vec<Command>) {
+
+    fn convert_args(cmd: &Command) -> (CString, Vec<CString>)  {
+        let bin = CString::new(cmd.name.clone()).unwrap();
+        let args: Vec<CString> = std::iter::once(bin.clone())
+        .chain(cmd.args.iter().map(|a| CString::new(a.as_str()).unwrap()))
+        .collect();
+        (bin,args)
+    } 
+
+    fn pipe_execute(cmds: &[Command]) {
         let (read_fg, write_fg) = pipe().unwrap();
 
-        let cmd_one = &cmds[0];
-        let cmd_two = &cmds[1];
-
-        match  fork().unwrap() {
+        match fork().unwrap() {
             ForkResult::Child => {
-                unsafe {
-                    dup2(write_fg, nix::libc::STDOUT_FILENO);
-                    close(write_fg);
-                    close(read_fg);
+                nix::unistd::dup2(read_fg, STDIN_FILENO).expect("dup2 failed");
+                nix::unistd::close(read_fg).expect("close failed");
+                nix::unistd::close(write_fg).expect("close failed");
 
-                    let bin = CString::new(cmd_one.name.clone()).unwrap();
-                    let args: Vec<CString> = std::iter::once(bin.clone())
-                        .chain(cmd_one.args.iter().map(|a| CString::new(a.as_str()).unwrap()))
-                        .collect();
+                let (bin, args) = Self::convert_args(&cmds[0]);
 
-                    execvp(&bin, &args).unwrap();
-                }
+                execvp(&bin, &args).unwrap();
             }
 
             ForkResult::Parent { child: child_one } => {
                 match fork().unwrap() {
                     ForkResult::Child => {
-                        unsafe {
-                            dup2(read_fg, STDIN_FILENO);
+                        nix::unistd::dup2(read_fg, STDIN_FILENO).expect("dup2 failed");
+                        nix::unistd::close(read_fg).expect("close failed");
+                        nix::unistd::close(write_fg).expect("close failed");
 
-                            close(read_fg);
-                            close(write_fg);
-
-                            let bin = CString::new(cmd_two.name.clone()).unwrap();
-                            let args: Vec<CString> = std::iter::once(bin.clone())
-                                .chain(cmd_two.args.iter().map(|a| CString::new(a.as_str()).unwrap()))
-                                .collect();
-
-                            execvp(&bin, &args).unwrap(); 
-                        }
+                        let (bin, args) = Self::convert_args(&cmds[1]);
+                        execvp(&bin, &args).unwrap();
                     }
-                    ForkResult::Parent { child: child_two } => {
-                        unsafe {
-                            close(read_fg);
-                            close(write_fg);
 
-                            let _ = waitpid(child_one, None);
-                            let _ = waitpid(child_two, None);
-                        }
+                ForkResult::Parent { child: child_two } => {
+                    unsafe {
+                        libc::close(read_fg);
+                        libc::close(write_fg);
+
+                        waitpid(child_one, None).expect("wait failed");
+                        waitpid(child_two, None).expect("wait failed");
                     }
                 }
             }
         }
     }
+}
+
 } 
 
 //テスト

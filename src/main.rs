@@ -30,15 +30,18 @@ fn main() {
 fn shell_loop() {
 
     loop {
+        // プロンプトを表示する部分
         let prompt = "noesh-mini";
         print!("\x1b[32m{prompt}\x1b[0m > ");
+        // 出力を即座に画面に出すため flush する
         std::io::stdout().flush().unwrap();
         
         match standard_input() {
             Ok(cmd) if !cmd.is_empty() => {
 
-                //lexer
+                //lexerのインスタンスを生成
                 let mut lex = lexer::Lexer::new();
+                //入力されたコマンド文字列をcmdレキサーに投げて、トークン列へ変換する処理
                 let tokens = match lex.lexar_allocation(&cmd) {
                     Ok(t) => t,
                     Err(e) => {
@@ -64,6 +67,7 @@ fn shell_loop() {
     }
 }
 
+/// 標準入力からコマンドを受け取り
 fn standard_input() -> Result<String, String> {
     let mut buffer = String::new();
     io::stdin()
