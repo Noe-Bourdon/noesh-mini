@@ -34,6 +34,8 @@ impl Parser {
         Parser { tokens, position: 0 }
     }
 
+    /// パーサーのエントリポイント
+    /// トークン列を解析してASTを生成
     pub fn parser(&mut self) -> AST {
        self.parser_pipe()
     }
@@ -45,7 +47,9 @@ impl Parser {
         self.tokens.get(self.position)
     }
 
-    /// 値をcloneして新しいTokenの所有権を返す関数
+    /// 次のトークンを取得して進める関数
+    /// トークンを`clone`して所有権を返す
+    /// 取得後は位置を１進める(トークンは消費する)
     fn advance(&mut self) -> Option<Token> {
         if self.position < self.tokens.len() {
             let tok = self.tokens[self.position].clone();
@@ -56,12 +60,22 @@ impl Parser {
         }
     }
 
-    ///パイプの場合の関数
-    /// AST::Pipe (
-    ///     Box::new(AST::Command
-    ///     Box::new(AST::Command
-    ///  )
+    /// パイプ構文を解析する関数
+    ///
+    /// 入力トークン列にパイプが含まれる場合、
+    /// 左右のコマンドをネストしたAST::Pipeで表現する。
+    ///
+    /// 例: `echo hello | grep h`
+    /// 入力トークン: [Word("echo"), Word("hello"), Pipe, Word("grep"), Word("h")]
+    /// ```
+    /// 出力AST:
+    /// AST::Pipe(
+    ///     Box::new(AST::Command("echo", ["hello"])),
+    ///     Box::new(AST::Command("grep", ["h"]))
+    /// )
+    /// ```
     pub fn parser_pipe(&mut self) -> AST {
+        // 左側のコマンドを解析
         let mut left = self.parser_command();
 
         while let Some(&Token::Pipe) = self.peek() {
@@ -72,7 +86,13 @@ impl Parser {
         left
     }
 
-    /// コマンド　Command {name: echo, args: ["hello"] }
+    /// 単一コマンドを解析する関数
+    ///
+    /// ```
+    /// 例: `echo hello`
+    /// 入力トークン: [Word("echo"), Word("hello")]
+    /// 出力AST: AST::Command(Command { name: "echo", args: ["hello"] })
+    /// ```
     pub fn parser_command(&mut self) -> AST {
         let name = match self.advance() {
             Some(Token::Word(w)) => w,
