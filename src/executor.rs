@@ -1,7 +1,7 @@
 
 
 use nix::libc::{
-    self, STDIN_FILENO, 
+    self, STDIN_FILENO, STDOUT_FILENO, 
 };
 
 use nix::sys::wait::{
@@ -144,12 +144,40 @@ impl Execute {
         (bin, args)
     }
 
+    /// 2つのコマンドをパイプで接続して実行する関数
+    ///
+    /// 入力: cmds = [Command1, Command2]
+    /// 例: ["echo hello", "grep h"]
+    ///
+    /// 処理イメージ:
+    /// ```
+    /// [child_one: cmds[0]]              [child_two: cmds[1]]
+    ///      ┌─────┐ stdout                ┌─────┐ stdin
+    ///      │echo │────dup2(write_fd)───> │grep │
+    ///      │hello│                       │h    │
+    ///      └─────┘                       └─────┘
+    ///          │                             │
+    ///          │ pipe                        │ pipe
+    ///          └─────────read_fd─────────────┘
+    ///
+    /// ファイルディスクリプタの流れ:
+    /// - child_one: stdout を write_fd に置き換え (dup2)
+    /// - child_two: stdin を read_fd に置き換え (dup2)
+    /// - 親プロセス: read_fd と write_fd は不要なので close
+    /// ```
+    /// この関数は fork で2つの子プロセスを作り、それぞれ execvp でコマンドを実行します
+    /// - child_one: cmds[0] を実行
+    /// - child_two: cmds[1] を実行
+    /// - 親プロセスは両方の子が終了するまで waitpid で待機
     fn pipe_execute(cmds: &[Command]) {
         let (read_fd, write_fd) = pipe().unwrap();
 
         match fork().unwrap() {
             ForkResult::Child => {
-                nix::unistd::dup2(write_fd, STDIN_FILENO).expect("dup2 failed");
+                // child_one: stdout を write_fd に置き換え
+                nix::unistd::dup2(write_fd, STDOUT_FILENO).expect("dup2 failed");
+
+                // 不要なFDを閉じる
                 nix::unistd::close(read_fd).expect("close failed");
                 nix::unistd::close(write_fd).expect("close failed");
 
@@ -160,7 +188,10 @@ impl Execute {
             ForkResult::Parent { child: child_one } => {
                 match fork().unwrap() {
                     ForkResult::Child => {
+                        // child_two: stdin を read_fd に置き換え
                         nix::unistd::dup2(read_fd, STDIN_FILENO).expect("dup2 failed");
+
+                        // 不要なFDを閉じる
                         nix::unistd::close(read_fd).expect("close failed");
                         nix::unistd::close(write_fd).expect("close failed");
 
@@ -169,6 +200,7 @@ impl Execute {
                     }
 
                     ForkResult::Parent { child: child_two } => {
+                        // 親プロセス: パイプFDを閉じ、子の終了を待機
                         unsafe {
                             libc::close(read_fd);
                             libc::close(write_fd);
@@ -180,7 +212,7 @@ impl Execute {
                 }
             }
         }
-    }
+    }   
 } 
 
 //テスト
